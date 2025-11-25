@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
-class Select extends StatelessWidget {
+class Generateselect extends StatelessWidget {
   final String algorithm;
   final void Function(String) onChanged;
-  const Select({required this.algorithm, required this.onChanged, Key? key});
+  const Generateselect({
+    required this.algorithm,
+    required this.onChanged,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return DropdownButton<String>(
       value: algorithm,
-      items: ['A*', 'Dijkstra', 'BFS', 'DFS'].map((String value) {
+      items: ['DFS', 'PRIM'].map((String value) {
         return DropdownMenuItem<String>(value: value, child: Text(value));
       }).toList(),
       onChanged: (String? newValue) {

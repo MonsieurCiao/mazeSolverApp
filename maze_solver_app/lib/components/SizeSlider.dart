@@ -13,8 +13,8 @@ class SizeSliderState extends State<SizeSlider> {
 
   @override
   Widget build(BuildContext context) {
-    double max = 100;
-    double min = 5;
+    double max = 80;
+    double min = 1;
     return Slider(
       value: _sizeSliderValue,
       max: max,

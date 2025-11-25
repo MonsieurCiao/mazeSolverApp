@@ -1,118 +1,35 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:maze_solver_app/components/functions.dart';
 import 'package:maze_solver_app/main.dart';
 
-class Cell {
-  var i = 0, j = 0;
-  var neighbors = <Cell>[];
-  bool visited = false;
-  Cell(this.i, this.j); //constructor
-}
-
-ValueNotifier<List<int>> canvasSize = ValueNotifier([200, 200]);
-
 class MazeWidget extends StatefulWidget {
-  const MazeWidget({super.key});
+  final List<List<Cell>> grid;
+  final int mazeI;
+
+  const MazeWidget({required this.grid, required this.mazeI, super.key});
+
   @override
-  _MazeWidgetState createState() => _MazeWidgetState();
+  State<MazeWidget> createState() => _MazeWidgetState();
 }
 
 class _MazeWidgetState extends State<MazeWidget> {
-  late List<List<Cell>> grid;
-
   @override
-  void initState() {
-    super.initState();
-    initMaze(cellSizeNotifier.value, canvasSize.value);
-    //listen to cellSizeNotifier
-    cellSizeNotifier.addListener(() {
-      setState(() {
-        initMaze(cellSizeNotifier.value, canvasSize.value);
-      });
-    });
-  }
-
-  void initMaze(int cellSize, List<int> canvasSize) {
-    print(canvasSize);
-    print("cellSize: $cellSize");
-    int gridSizeX = (canvasSize[0] / cellSize).toInt();
-    int gridSizeY = (canvasSize[1] / cellSize).toInt();
-    grid = List<List<Cell>>.generate(
-      gridSizeX,
-      (i) => List<Cell>.generate(gridSizeY, (j) => Cell(i, j), growable: false),
-      growable: false,
-    );
-    grid[0][0].visited = true;
-    generateMaze(0, 0, grid);
-  }
-
-  void generateMaze(int row, int col, List<List<Cell>> grid) {
-    var cur = grid[row][col];
-    var cells = <Cell>[];
-    // drawCell(canvas, row, col);
-
-    if (row > 0) {
-      var leftCell = grid[row - 1][col];
-      if (!leftCell.visited) {
-        cells.add(leftCell);
-      }
+  void didUpdateWidget(covariant MazeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.grid != widget.grid) {
+      setState(() {});
     }
-    if (row < grid.length - 1) {
-      var rightCell = grid[row + 1][col];
-      if (!rightCell.visited) {
-        cells.add(rightCell);
-      }
-    }
-    if (col > 0) {
-      var topCell = grid[row][col - 1];
-      if (!topCell.visited) {
-        cells.add(topCell);
-      }
-    }
-    if (col < grid[0].length - 1) {
-      var bottomCell = grid[row][col + 1];
-      if (!bottomCell.visited) {
-        cells.add(bottomCell);
-      }
-    }
-
-    if (cells.isNotEmpty) {
-      int randIndex = Random().nextInt(cells.length); // 0 <= x < 4
-      var newCell = cells[randIndex];
-      newCell.visited = true;
-      cur.neighbors.add(newCell);
-      newCell.neighbors.add(cur);
-      generateMaze(newCell.i, newCell.j, grid);
-      cells.removeAt(randIndex);
-      if (cells.isNotEmpty) {
-        generateMaze(row, col, grid);
-      }
-    }
-    return;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      // child: CustomPaint(size: Size(2000, 2000), painter: MazePainter(grid)),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final newSize = [
-            constraints.maxWidth.floor(),
-            constraints.maxHeight.floor(),
-          ];
-          if (canvasSize.value[0] != newSize[0] ||
-              canvasSize.value[1] != newSize[1]) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              canvasSize.value = newSize;
-            });
-          }
-          return CustomPaint(
-            size: Size(constraints.maxWidth, constraints.maxHeight),
-            painter: MazePainter(grid),
-          );
-        },
+    return SizedBox(
+      child: CustomPaint(
+        size: Size(
+          canvasSize.value[0].toDouble(),
+          canvasSize.value[1].toDouble(),
+        ),
+        painter: MazePainter(widget.grid, widget.mazeI),
       ),
     );
   }
@@ -120,16 +37,17 @@ class _MazeWidgetState extends State<MazeWidget> {
 
 class MazePainter extends CustomPainter {
   final List<List<Cell>> grid;
-  MazePainter(this.grid);
+  final int mazeI;
+  MazePainter(this.grid, this.mazeI);
   @override
   void paint(Canvas canvas, Size size) {
-    var center = size / 2;
-    canvasSize.value = [size.width.floor(), size.height.floor()];
+    // canvasSize.value = [size.width.floor(), size.height.floor()];
     canvas.drawRect(
-      Rect.fromCenter(
-        center: Offset(center.width, center.height),
-        width: size.width,
-        height: size.height,
+      Rect.fromLTWH(
+        0,
+        0,
+        ((grid.length - 0.0) * 2 * cellSizeNotifier.value).toDouble(),
+        ((grid[0].length - 0.0) * 2 * cellSizeNotifier.value).toDouble(),
       ),
       Paint()..color = Colors.black,
     );
@@ -138,18 +56,53 @@ class MazePainter extends CustomPainter {
     int spacing = cellSizeNotifier.value * 2;
     double cellSize = cellSizeNotifier.value.toDouble();
     for (int i = 0; i < grid.length; i++) {
-      for (int j = 0; j < grid.length; j++) {
+      for (int j = 0; j < grid[0].length; j++) {
         canvas.drawRect(
           Rect.fromCenter(
             center: Offset(
-              (i * spacing + cellSize / 2).toDouble(),
-              (j * spacing + cellSize / 2).toDouble(),
+              (i * spacing + cellSize).toDouble(),
+              (j * spacing + cellSize).toDouble(),
             ),
             width: cellSize.toDouble(),
             height: cellSize.toDouble(),
           ),
           Paint()..color = Colors.white,
         );
+        if (grid[i][j].visitedBy[mazeI] == (mazeI + 1)) {
+          canvas.drawRect(
+            Rect.fromCenter(
+              center: Offset(
+                (i * spacing + cellSize).toDouble(),
+                (j * spacing + cellSize).toDouble(),
+              ),
+              width: cellSize.toDouble(),
+              height: cellSize.toDouble(),
+            ),
+            Paint()..color = Colors.blue,
+          );
+        }
+        if (grid[i][j].end) {
+          canvas.drawRect(
+            Rect.fromLTWH(
+              (cellSize / 4 + i * cellSize) * 2,
+              (cellSize / 4 + j * cellSize) * 2,
+              cellSize,
+              cellSize,
+            ),
+            Paint()..color = Colors.red,
+          );
+        }
+        if (grid[i][j].start) {
+          canvas.drawRect(
+            Rect.fromLTWH(
+              (cellSize / 4 + i * cellSize) * 2,
+              (cellSize / 4 + j * cellSize) * 2,
+              cellSize,
+              cellSize,
+            ),
+            Paint()..color = Colors.green,
+          );
+        }
         visualizeConnections(canvas, grid[i][j], spacing);
       }
     }
@@ -161,11 +114,11 @@ class MazePainter extends CustomPainter {
         Rect.fromCenter(
           center: Offset(
             (cell.i * spacing +
-                    spacing / 4 +
+                    spacing / 2 +
                     (spacing / 2 * (neighborCell.i - cell.i)))
                 .toDouble(),
             (cell.j * spacing +
-                    spacing / 4 +
+                    spacing / 2 +
                     (spacing / 2 * (neighborCell.j - cell.j)))
                 .toDouble(),
           ),
@@ -179,6 +132,7 @@ class MazePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(MazePainter old) {
-    return old.grid != grid;
+    // return old.grid != grid;
+    return true;
   }
 }
