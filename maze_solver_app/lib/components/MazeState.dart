@@ -143,6 +143,14 @@ class _MazeScreenState extends State<MazeScreen> {
         bfs(algorithmGrids[i], i, speedNotifier.value, () {
           setState(() {});
         });
+      } else if (_algorithms[i] == "Dijkstra") {
+        dijkstra(algorithmGrids[i], i, speedNotifier.value, () {
+          setState(() {});
+        });
+      } else {
+        astar(algorithmGrids[i], i, speedNotifier.value, () {
+          setState(() {});
+        });
       }
     }
   }
@@ -156,6 +164,7 @@ class _MazeScreenState extends State<MazeScreen> {
             (index) => 0,
             growable: false,
           );
+          algorithmGrids[mazeI][i][j].visited = false;
         }
       }
     }

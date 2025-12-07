@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/animation.dart';
+import 'package:collection/collection.dart';
 
 class Cell {
   var i = 0, j = 0;
@@ -46,6 +47,7 @@ Future<void> dfs(
       print("Found end");
       return;
     }
+    await Future.delayed(Duration(milliseconds: speed));
 
     Cell? nextNeighbor;
     for (var neighbor in cur.neighbors) {
@@ -61,8 +63,6 @@ Future<void> dfs(
     } else {
       stack.removeLast();
     }
-
-    await Future.delayed(Duration(milliseconds: speed));
   }
 
   print("No path found");
@@ -79,7 +79,6 @@ Future<void> bfs(
   // cleanGrid(grid);
 
   List<Cell> q = []; // pointer queue
-
   grid[0][0].visited = true;
   q.add(grid[0][0]);
 
@@ -104,6 +103,179 @@ Future<void> bfs(
     }
     await Future.delayed(Duration(milliseconds: speed));
   }
+}
+
+Future<void> dijkstra(
+  List<List<Cell>> grid,
+  int algI,
+  int speedMs,
+  VoidCallback onUpdate,
+) async {
+  final rows = grid.length;
+  final cols = grid[0].length;
+
+  // Adjust this to however you define start / end
+  final Cell start = grid[0][0];
+  Cell? end;
+  for (var row in grid) {
+    for (var c in row) {
+      if (c.end == true) {
+        end = c;
+        break;
+      }
+    }
+    if (end != null) break;
+  }
+
+  // Distances and visited
+  final Map<Cell, int> dist = {};
+  final Set<Cell> visited = {};
+
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
+      dist[grid[i][j]] = 0x7FFFFFFF; // big "infinity"
+    }
+  }
+  dist[start] = 0;
+
+  // Min-heap priority queue of (distance, cell)
+  final pq = PriorityQueue<_Node>((a, b) => a.dist.compareTo(b.dist));
+  pq.add(_Node(start, 0));
+
+  while (pq.isNotEmpty) {
+    final current = pq.removeFirst();
+    final Cell cur = current.cell;
+    final int curDist = current.dist;
+
+    if (visited.contains(cur)) continue;
+    visited.add(cur);
+
+    // mark for visualization
+    cur.visitedBy[algI] = algI + 1;
+    onUpdate();
+    await Future.delayed(Duration(milliseconds: speedMs));
+
+    if (cur == end) {
+      print('Dijkstra Reached end cell with distance: $curDist');
+      return;
+    }
+
+    for (final Cell nbr in cur.neighbors) {
+      if (visited.contains(nbr)) continue;
+
+      final int newDist = curDist + 1; // or edge weight if you have one
+      final int oldDist = dist[nbr] ?? 0x7FFFFFFF;
+
+      if (newDist < oldDist) {
+        dist[nbr] = newDist;
+        pq.add(_Node(nbr, newDist));
+      }
+    }
+  }
+
+  print("dijkstra hasn't found mommy :'(");
+}
+
+class _Node {
+  final Cell cell;
+  final int dist;
+  _Node(this.cell, this.dist);
+}
+
+int heuristic(Cell a, Cell b) {
+  // Manhattan distance
+  return (a.i - b.i).abs() + (a.j - b.j).abs();
+}
+
+Future<void> astar(
+  List<List<Cell>> grid,
+  int algI,
+  int speedMs,
+  VoidCallback onUpdate,
+) async {
+  final rows = grid.length;
+  final cols = grid[0].length;
+
+  // Find start and end
+  Cell? start;
+  Cell? goal;
+  for (var row in grid) {
+    for (var c in row) {
+      if (c.start) start = c;
+      if (c.end) goal = c;
+    }
+  }
+
+  if (start == null || goal == null) {
+    print("No start or end cell set!");
+    return;
+  }
+
+  // g-score (distance from start), f-score, parent
+  final Map<Cell, int> g = {};
+  final Map<Cell, int> f = {};
+  final Map<Cell, Cell> parent = {};
+
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
+      g[grid[i][j]] = 0x7FFFFFFF; // big "infinity"
+    }
+  }
+
+  g[start!] = 0;
+  f[start!] = heuristic(start!, goal!);
+
+  // Min-heap priority queue of (f-score, cell)
+  final pq = PriorityQueue<_ANode>((a, b) => a.priority.compareTo(b.priority));
+  pq.add(_ANode(start!, f[start!]!));
+
+  while (pq.isNotEmpty) {
+    final current = pq.removeFirst();
+    final Cell cur = current.cell;
+    final int curF = current.priority;
+
+    if (cur.visited) continue;
+    cur.visited = true;
+
+    // mark for visualization
+    cur.visitedBy[algI] = algI + 1;
+    onUpdate();
+    await Future.delayed(Duration(milliseconds: speedMs));
+
+    if (cur.end) {
+      print('A* done! Path length: TBD');
+      // Reconstruct path if needed
+      List<Cell> path = [];
+      Cell? p = goal;
+      while (p != null) {
+        path.add(p);
+        p = parent[p];
+      }
+      path = path.reversed.toList();
+      print('Path length: ${path.length}');
+      return;
+    }
+
+    for (final Cell nbr in cur.neighbors) {
+      if (nbr.visited) continue;
+
+      final int tentativeG = g[cur]! + 1;
+      if (tentativeG < (g[nbr] ?? 0x7FFFFFFF)) {
+        parent[nbr] = cur;
+        g[nbr] = tentativeG;
+        f[nbr] = tentativeG + heuristic(nbr, goal);
+        pq.add(_ANode(nbr, f[nbr]!));
+      }
+    }
+  }
+
+  print("No path found.");
+}
+
+class _ANode {
+  final Cell cell;
+  final int priority;
+  _ANode(this.cell, this.priority);
 }
 
 void dfsGenerate(List<List<Cell>> grid) {
